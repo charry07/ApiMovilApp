@@ -1,0 +1,24 @@
+version: '3'
+services:
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_DB: AquiVaElNombreDeTuBaseDeDatos
+      POSTGRES_USER: Charry07
+      POSTGRES_PASSWORD: Charry07
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./DB:/var/lib/postgresql/data
+  
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: charry072013@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: Charry07
+    ports:
+      - "80:80"
+    depends_on:
+      - postgres
