@@ -57,20 +57,28 @@ export const forgotPasswordController = async (request: any, reply: any) => {
     return reply.status(400).send({ message: 'No existe una cuenta con ese correo electrónico.' });
   }
   // Guarda el token de restablecimiento de contraseña y la fecha de expiración en la base de datos
-  const resetCode = jwt.sign({ id: user.id }, SecretKey, { expiresIn: '1h' });
-  await dbAzure(`UPDATE users SET resetCode = '${resetCode}', resetCodeExpires = '${Date.now() + 3600000}' WHERE email = '${email}'`);
+  const token = jwt.sign({ id: user.id }, SecretKey, { expiresIn: '1h' });
+  // await dbAzure(`UPDATE users SET resetCode = '${token}', resetCodeExpires = '${Date.now() + 3600000}' WHERE email = '${email}'`);
 
   // Enviar un correo electrónico al usuario con el enlace para restablecer la contraseña
-  const resetUrl = `http://localhost:3001/api/auth/reset/${email}`;
+  const resetUrl = `http://localhost:3001/api/auth/reset/token=${token}`;
   const message = `Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace, o pégalo en tu navegador para completar el proceso: ${resetUrl}`;
 
   // Configurar el transporte de correo electrónico
+  // const transporter = nodemailer.createTransport({
+  //   host: 'smtp.ethereal.email',
+  //   port: 587,
+  //   auth: {
+  //     user: process.env.EMAIL_USERNAME,
+  //     pass: process.env.EMAIL_PASSWORD,
+  //   },
+  // });
+
   const transporter = nodemailer.createTransport({
-    host: 'smtp.ethereal.email',
-    port: 587,
+    service: 'gmail',
     auth: {
-      user: process.env.EMAIL_USERNAME,
-      pass: process.env.EMAIL_PASSWORD,
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_PASSWORD,
     },
   });
 
@@ -85,7 +93,7 @@ export const forgotPasswordController = async (request: any, reply: any) => {
   try {
     // Enviar el correo electrónico
     await transporter.sendMail(mailOptions).then((info: any) => {
-      console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+      console.log(info);
     });
   } catch (error) {
     console.error(error);
@@ -96,20 +104,12 @@ export const forgotPasswordController = async (request: any, reply: any) => {
 };
 
 export const resetController = async (request: any, reply: any) => {
-  const { email } = request.params;
+  const { token } = request.params;
   try {
     // Verificar si el token de restablecimiento de contraseña es válido
-    const user = await dbAzure(`SELECT * FROM users WHERE email = '${email}'`);
-    if (!user) {
-      return reply.status(400).send({ message: 'No existe una cuenta con ese correo electrónico.' });
-    }
-    const resetCode = user.resetCode;
-    const resetCodeExpires = user.resetCodeExpires;
-    if (!resetCode || Date.now() > resetCodeExpires) {
-      return reply.status(400).send({ message: 'El token de restablecimiento de contraseña no es válido o ha expirado.' });
-    }
-    // Enviar el token de restablecimiento de contraseña al cliente
-    reply.send({ resetCode });
+    const isValid = jwt.verify(token, SecretKey);
+    if (!isValid) return reply.status(400).send({ message: 'El token no es válido o ha expirado.' });
+
   } catch (error) {
     console.error(error);
     reply.status(500).send({ message: 'Hubo un problema al restablecer la contraseña. Por favor, inténtalo de nuevo más tarde.' });

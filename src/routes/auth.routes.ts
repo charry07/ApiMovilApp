@@ -22,7 +22,7 @@ const AuthRoutes = [
     handler: ValidarToken,
   },
   {
-    url: '/api/auth/reset/:code',
+    url: '/api/auth/reset/:token',
     method: 'GET',
     handler: resetController,
   },

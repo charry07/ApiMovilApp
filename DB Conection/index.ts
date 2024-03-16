@@ -28,7 +28,7 @@ const config = {
 const poolPromise = sql
   .connect(config)
   .then((pool: any) => {
-    console.log('Connected to MSSQL');
+    console.log('Connected to Azure DB! - acharry-db');
     return pool;
   })
   .catch((err: Error) => console.log('Database Connection Failed! Bad Config: ', err));
