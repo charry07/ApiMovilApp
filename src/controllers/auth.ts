@@ -42,6 +42,7 @@ export const loginController = async (request: any, reply: any) => {
   if (!findUser) return reply.status(400).send({ message: 'Usuario no encontrado' });
   // Verifica la contraseña
   const validPassword = bcryptjs.compareSync(password, findUser.password);
+  if (!validPassword) return reply.status(400).send({ message: 'Error verifica el email y la contrasena' });
   // Genera un token JWT
   const token = await generateJWT(findUser.id, findUser.username);
   // Envía la respuesta
@@ -58,10 +59,10 @@ export const forgotPasswordController = async (request: any, reply: any) => {
   }
   // Guarda el token de restablecimiento de contraseña y la fecha de expiración en la base de datos
   const token = jwt.sign({ id: user.id }, SecretKey, { expiresIn: '1h' });
-  // await dbAzure(`UPDATE users SET resetCode = '${token}', resetCodeExpires = '${Date.now() + 3600000}' WHERE email = '${email}'`);
+  await dbAzure(`UPDATE users SET resetCode = '${token}' WHERE email = '${email}'`);
 
   // Enviar un correo electrónico al usuario con el enlace para restablecer la contraseña
-  const resetUrl = `http://localhost:3001/api/auth/reset/token=${token}`;
+  const resetUrl = `${process.env.BACKEND_URL}/api/auth/reset/${email}`;
   const message = `Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace, o pégalo en tu navegador para completar el proceso: ${resetUrl}`;
 
   // Configurar el transporte de correo electrónico
@@ -104,11 +105,18 @@ export const forgotPasswordController = async (request: any, reply: any) => {
 };
 
 export const resetController = async (request: any, reply: any) => {
-  const { token } = request.params;
+  const { email } = request.params;
   try {
-    // Verificar si el token de restablecimiento de contraseña es válido
+    // traer el token de la base de datos para verificar si es valido
+    const user = await dbAzure(`SELECT * FROM users WHERE email = '${email}'`);
+    const token = user.resetCode;
+    if (!token) return reply.status(400).send({ message: 'No se ha encontrado un token de restablecimiento de contraseña.' });
     const isValid = jwt.verify(token, SecretKey);
     if (!isValid) return reply.status(400).send({ message: 'El token no es válido o ha expirado.' });
+
+    // Redirigir al usuario a la página de restablecimiento de contraseña en la aplicación del cliente
+    const clientResetPasswordUrl = `${process.env.FRONTEND_URL}?email=${email}&token=${token}&userId=${user.id}`;
+    return reply.redirect(clientResetPasswordUrl);
 
   } catch (error) {
     console.error(error);

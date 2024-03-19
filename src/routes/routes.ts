@@ -1,6 +1,7 @@
 import { db } from '../../DB Conection';
 import { dbAzure } from '../../DB Conection';
 import { middlewareToken } from '../controllers/auth';
+const bcryptjs = require('bcryptjs');
 
 const Routes = [
   {
@@ -44,7 +45,16 @@ const Routes = [
     handler: async (request: any, reply: any) => {
       try {
         const id = request.params.id;
-        const { username, email, firstName, lastName, birthDate, phoneNumber } = request.body;
+        const { username, email, firstName, lastName, birthDate, phoneNumber , password } = request.body;
+        console.log(request.body)
+        if(password) {
+          console.log('entrando a cambiar contraseña')
+          const salt = bcryptjs.genSaltSync();
+          const hashedPassword = bcryptjs.hashSync(password, salt);
+          await dbAzure(`UPDATE users SET password = '${hashedPassword}' WHERE id = ${id}`);
+          const user = await dbAzure(`SELECT * FROM users WHERE id = ${id}`);
+          reply.send(user);
+        }
         await dbAzure(`UPDATE users SET username = '${username}', email = '${email}', firstName = '${firstName}', lastName = '${lastName}', birthDate = '${birthDate}', phoneNumber = '${phoneNumber}' WHERE id = ${id}`);
         const user = await dbAzure(`SELECT * FROM users WHERE id = ${id}`);
         reply.send(user);
